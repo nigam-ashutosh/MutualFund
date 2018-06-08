@@ -413,10 +413,11 @@ namespace MutualFund
             string sign = diff >= 0 ? "+" : "";
             string diffText = sign.ToString() + diff.ToString("N" + 2);
             sb.AppendFormat("{0}", DoSpacing(diffText, 15));
-            double netTotalGain = diff + netRealizedGains;
+            double effRealizedGain = netRealizedGains - netRealizedDivGains;
+            double netTotalGain = diff + effRealizedGain;
             sb.AppendFormat("{0}{1}{2}{3}\n", 
                                 DoSpacing("RealizedGain", 15), 
-                                DoSpacing((netRealizedGains > 0 ? "+" : "") + netRealizedGains.ToString("N2"), 20),
+                                DoSpacing((effRealizedGain > 0 ? "+" : "") + effRealizedGain.ToString("N2"), 20),
                                 DoSpacing("TotalGain", 20),
                                 DoSpacing((netTotalGain > 0 ? "+" : "") + netTotalGain.ToString("N2"), 20));
             sb.AppendFormat("{0}{1}", DoSpacing("Net Change(%)", 40), DoSpacing(latestAggData.Item3, 15, 2));
@@ -1956,7 +1957,7 @@ namespace MutualFund
             return d[n, m];
         }
 
-        public static double RiskFreeInterestRate = 0.0675;
+        public static double RiskFreeInterestRate = 0.06;
         
         private static void CalculateReturns()
         {
@@ -2193,11 +2194,12 @@ namespace MutualFund
         }
 
         static double netRealizedGains;
+        static double netRealizedDivGains;
         private static void ProcessRealizedGains(bool displayDetails = true)
         {
             ClearScreen();
             netRealizedGains = 0;
-            RealizedGain.Process(out netRealizedGains, displayDetails);
+            RealizedGain.Process(out netRealizedGains, out netRealizedDivGains, displayDetails);
             dividends = new Dictionary<string, List<Tuple<DateTime, double>>>(RealizedGain.dividends);
         }
 

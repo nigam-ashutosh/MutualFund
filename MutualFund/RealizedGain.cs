@@ -16,11 +16,12 @@ namespace MutualFund
         static DateTime maxDateFoAllrMutualFunds;// = new DateTime();
 
         static bool firstTime = true;
-        public static void Process(out double totalRealizedGains, bool display)
+        public static void Process(out double totalRealizedGains, out double totalRealizedDivgains, bool display)
         {
             if(!firstTime)
             {
                 totalRealizedGains = netReturnAdjustedgains;
+                totalRealizedDivgains = netReturnAdjustedDividends;
                 if (display)
                     UpdateAndDisplay();
                 return;
@@ -33,6 +34,7 @@ namespace MutualFund
                 UpdateAndDisplay();
             }   
             totalRealizedGains = netReturnAdjustedgains;
+            totalRealizedDivgains = netReturnAdjustedDividends;
         }
 
         private static bool updated = false;
@@ -119,6 +121,7 @@ namespace MutualFund
         internal static double totalDividends = 0;
         static double netGains = 0;
         static double netReturnAdjustedgains = 0;
+        static double netReturnAdjustedDividends = 0;
 
         static List<Tuple<string, DateTime, double, double>> realizedGainsData;
         private static void GetDataFromFile(out DateTime maxDate)
@@ -171,6 +174,7 @@ namespace MutualFund
                         dividends.Add(arr[0], new List<Tuple<DateTime, double>>());
                     dividends[arr[0]].Add(Tuple.Create(date, mfGain));
                     totalDividends += mfGain;
+                    netReturnAdjustedDividends += adjGain;
                 }
             }            
         }
