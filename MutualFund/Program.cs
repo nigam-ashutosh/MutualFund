@@ -55,7 +55,7 @@ namespace MutualFund
 
                 Console.WriteLine("\nModification:");
                 Console.WriteLine("7:\tAdd New Mutual Fund");
-                Console.WriteLine("8:\tDelete Mutual Fund and Update Realize Gain file");
+                Console.WriteLine("8:\tDelete Mutual Fund");
                 Console.WriteLine("9:\tModify Mutual Fund Data");
                 Console.WriteLine("10:\tUpdate Dividend Payout(s)");
                 
@@ -1982,7 +1982,7 @@ namespace MutualFund
                 Program.DoSpacing("Return (%)", 20),
                 Program.DoSpacing("Std.Dev", 20),
                 Program.DoSpacing(sharpRatioDetail, 20),
-                Program.DoSpacing("Avg. Days", 20),
+                Program.DoSpacing("Weighted Days", 20),
                 Program.DoSpacing("Start Date", 20)
                 );
             if(latesValueByName.Count == 0)
