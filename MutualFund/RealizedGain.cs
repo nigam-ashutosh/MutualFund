@@ -124,6 +124,7 @@ namespace MutualFund
         static double netReturnAdjustedDividends = 0;
 
         static List<Tuple<string, DateTime, double, double>> realizedGainsData;
+        internal static Dictionary<DateTime, double> RealizedGainByDate;
         private static void GetDataFromFile(out DateTime maxDate)
         {
             netGains = 0;
@@ -131,6 +132,7 @@ namespace MutualFund
             maxDate = DateTime.MinValue;
             dividends = new Dictionary<string, List<Tuple<DateTime, double>>>();
             realizedGainsData = new List<Tuple<string, DateTime, double, double>>();
+            RealizedGainByDate = new Dictionary<DateTime, double>();
             if (!System.IO.File.Exists("RealizedGains.csv"))
                 return;
             var allLines = System.IO.File.ReadLines("RealizedGains.csv");
@@ -163,6 +165,11 @@ namespace MutualFund
                 double adjGain = mfGain * Math.Pow(1 + Program.RiskFreeInterestRate, daysToCurrentDate / 365.0);
                 netReturnAdjustedgains += adjGain;
                 realizedGainsData.Add(Tuple.Create(arr[0], date, mfGain, adjGain));
+
+                if (!RealizedGainByDate.ContainsKey(date))
+                    RealizedGainByDate.Add(date, 0);
+                RealizedGainByDate[date] += mfGain;
+
                 if ((date - maxDate).Days > 0)
                     maxDate = date;
                 if(arr[3].ToLower().Contains("div"))

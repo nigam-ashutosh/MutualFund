@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MutualFund
 {
-    class ReturnCalculation
+    class MfReturn
     {
         Dictionary<DateTime, double> investmnetByDate;
         Dictionary<DateTime, double> investmentDiffByDate;
@@ -19,7 +19,7 @@ namespace MutualFund
         public double stdDev = double.MinValue;
         private Dictionary<DateTime, double> navByDate;
         Dictionary<DateTime, double> dividents;
-        public ReturnCalculation(Dictionary<DateTime, double> orig, double curValue, string entityName = null, bool displayreturn = true, Dictionary<DateTime, double> navByDate = null, Dictionary<DateTime, double> dividends = null)
+        public MfReturn(Dictionary<DateTime, double> orig, double curValue, string entityName = null, bool displayreturn = true, Dictionary<DateTime, double> navByDate = null, Dictionary<DateTime, double> dividends = null)
         {
             investmnetByDate = new Dictionary<DateTime, double>(orig);
             curNetValue = curValue;
@@ -62,6 +62,7 @@ namespace MutualFund
             }
             sb.AppendFormat("================================================\n");
         }
+        SortedSet<int> daysDiffSorted = new SortedSet<int>();
         private void Extract()
         {
             var dates = investmnetByDate.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day).ToList();
@@ -72,19 +73,16 @@ namespace MutualFund
                 double record = RoundBy100(investmnetByDate[date]);
                 if (record != prevRecord)
                 {
-                    if (!investmentDiffByDate.ContainsKey(date))
-                    {
-                        investmentDiffByDate.Add(date, record - prevRecord);
-                    }
+                    UpdateInvestmentDiffByDate(date, record - prevRecord, true);
                     prevRecord = record;
                 }
-                if (dividents.ContainsKey(date))
+                if (this.name != null)
                 {
-                    if (!investmentDiffByDate.ContainsKey(date))
-                    {
-                        investmentDiffByDate[date] = 0;
-                    }
-                    investmentDiffByDate[date] -= dividents[date];
+                    UpdateInvestmentDiffByDate(date, dividents);
+                }
+                else
+                {
+                    UpdateInvestmentDiffByDate(date, RealizedGain.RealizedGainByDate);
                 }
             }
             FirstInvestmentDate = dates.FirstOrDefault();
@@ -93,6 +91,26 @@ namespace MutualFund
             allDates = dates;
         }
 
+        private void UpdateInvestmentDiffByDate(DateTime date, Dictionary<DateTime, double> gainDictionary)
+        {
+            if (gainDictionary != null && gainDictionary.ContainsKey(date))
+            {
+                UpdateInvestmentDiffByDate(date, -gainDictionary[date]);
+            }
+        }
+
+        private void UpdateInvestmentDiffByDate(DateTime date, double value, bool doNotUpdateIfExisting = false)
+        {
+            if (investmentDiffByDate.ContainsKey(date) && doNotUpdateIfExisting)
+                return;
+            if (!investmentDiffByDate.ContainsKey(date))
+            {
+                investmentDiffByDate[date] = 0;
+            }
+            investmentDiffByDate[date] += value;
+            int daysDiff = (DateTime.Now - date).Days;
+            daysDiffSorted.Add(daysDiff);
+        }
         public Dictionary<DateTime, double> GetInvestmentByDateInformation()
         {
             return new Dictionary<DateTime, double>(investmentDiffByDate);
@@ -108,10 +126,10 @@ namespace MutualFund
         private bool printLog = true;
         private double GetReturn()
         {
-            if(this.name != null && this.name.Contains("Tat") && this.name.Contains("Tax"))
-            { }
-            double ub = curNetValue > curActValue ?  1000 : 0;
-            double lb = curNetValue > curActValue ? 0 : -1000;
+            //double ub = curNetValue > curActValue ?  1000 : 0;
+            //double lb = curNetValue > curActValue ? 0 : -1000;
+            double ub = GetReturnBound(true);
+            double lb = GetReturnBound(false);
             int iteration = 1;
 
             //adjust current net value for today's investment
@@ -160,6 +178,22 @@ namespace MutualFund
                 }
                 iteration++;
             }
+        }
+
+        private double GetReturnBound(bool upper)
+        {
+            //if positive return then for lower bound use max interval
+            int interval = -1;
+            if(upper)
+            {
+                interval = curNetValue > curActValue ? daysDiffSorted.Min : daysDiffSorted.Max;
+            }
+            else
+            {
+                interval = curNetValue > curActValue ? daysDiffSorted.Max : daysDiffSorted.Min;
+            }
+            double ret = Math.Pow(curNetValue / curActValue, 365.0 / interval) - 1;
+            return ret;
         }
 
         internal double GetAverageInvestementAgeInDays()
@@ -235,7 +269,14 @@ namespace MutualFund
                 double val = Program.DetailedReturnsByName[this.name][date];
                 sb.AppendFormat("{0}\t{1}\n", date.ToString("yyyyMMdd"), val);
             }
-            this.stdDev = this.GetStandardDeviation(returns.ToList());
+            try
+            {
+                this.stdDev = this.GetStandardDeviation(returns.ToList());
+            }
+            catch
+            {
+
+            }
         }
 
         private double GetStandardDeviation(List<double> returns)

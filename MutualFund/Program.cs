@@ -17,12 +17,15 @@ namespace MutualFund
         static string webURL = "https://www.amfiindia.com/spages/NAVAll.txt?t=20122017043431";
 
         static Dictionary<string, double> latesNAVByName = new Dictionary<string, double>();
+        static Dictionary<int, Tuple<DateTime, double>> latestNAVByNameDateAndCode = new Dictionary<int, Tuple<DateTime, double>>();
+        static Dictionary<int, string> mfCodeNameMapping = new Dictionary<int, string>();
         static Dictionary<string, double> latesValueByName = new Dictionary<string, double>();
         static DateTime latestDate = new DateTime();
         static Dictionary<string, Dictionary<double, double>> existingAmount
             = new Dictionary<string, Dictionary<double, double>>();
         static Dictionary<string, List<Tuple<DateTime, double>>> dividends;
         static Dictionary<string, DateTime> schemeUpdate = new Dictionary<string, DateTime>();
+        internal static HistoricalNavStore HistoricalNavStore;
         static void Main(string[] args)
         {
             //Sensex.GetSensexData();
@@ -50,7 +53,7 @@ namespace MutualFund
                 Console.WriteLine("4:\tPrint Return Graph");
                 //Console.ForegroundColor = origColor;
 
-                Console.WriteLine("5:\tCalculate Return");
+                Console.WriteLine("5:\tCalculate Return and correlation analysis");
                 Console.WriteLine("6:\tRealized Gain Analysis");
 
                 Console.WriteLine("\nModification:");
@@ -550,38 +553,65 @@ namespace MutualFund
             StringBuilder log = new StringBuilder();
 
             log.AppendFormat("All Mutual Fund NAV as on {0}\n\n", DateTime.Now.ToString());
-            
+
+            int ctr = 0;
             foreach (var line in lines)
             {
-                var content = line.Split(new char[] { ';' });
-                if (content.Count() < 3)
-                    continue;
-                counter++;
-                if (counter < 2)
-                    continue;
-                double value = 0;
-                bool success = double.TryParse(content[4], out value);
-                if (!success)
-                    continue;
-                var name = content[3];
+                ctr++;
 
-               if (newNameToOldNameMapping.ContainsKey(name))
-                    name = newNameToOldNameMapping[name];
-                log.AppendFormat("{0}\t{1}\n", name, value);
-                DateTime curDate = new DateTime();
-                success = DateTime.TryParse(content[7], out curDate);
-                if (!latesNAVByName.ContainsKey(name))
+                try
                 {
-                    latesNAVByName.Add(name, value);
-                    if (success)
+                    var content = line.Split(new char[] { ';' });
+                    if (content.Count() < 3)
+                        continue;
+                    counter++;
+                    if (counter < 2)
+                        continue;
+                    double value = 0;
+                    bool success = double.TryParse(content[4], out value);
+                    if (!success)
+                        continue;
+                    var name = content[3];
+
+                    if (newNameToOldNameMapping.ContainsKey(name))
+                        name = newNameToOldNameMapping[name];
+                    log.AppendFormat("{0}\t{1}\n", name, value);
+                    DateTime curDate = new DateTime();
+                    success = DateTime.TryParse(content[5], out curDate);
+                    int code;
+                    int.TryParse(content[0], out code);
+                    if (!latesNAVByName.ContainsKey(name))
                     {
-                        schemeUpdate.Add(name, curDate);
-                        latestDate = new DateTime(Math.Max(latestDate.Ticks, curDate.Ticks));
+                        latesNAVByName.Add(name, value);
+                        if (success)
+                        {
+                            schemeUpdate.Add(name, curDate);
+                            latestDate = new DateTime(Math.Max(latestDate.Ticks, curDate.Ticks));
+                        }
+                        if (!mfCodeNameMapping.ContainsKey(code))
+                        {
+                            mfCodeNameMapping.Add(code, name);
+                        }
                     }
+                    
+                    if (!latestNAVByNameDateAndCode.ContainsKey(code))
+                    {
+                        latestNAVByNameDateAndCode.Add(code, Tuple.Create(latestDate, value));
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Error in parsing line: "+ line);
+
                 }
             }
 
             #endregion //--Process Data()
+
+            //if (HistoricalNavStore == null)
+            //{
+            //    HistoricalNavStore = new HistoricalNavStore(latestNAVByNameDateAndCode, mfCodeNameMapping);
+            //}
         }
 
         //key new name, value old name
@@ -677,7 +707,7 @@ namespace MutualFund
             rv += DoSpacing("%Change", 20);
             rv += "Latest NAV\n";
             return rv;
-        }
+        } 
         public static void ClearScreen()
         {
             Console.Clear();
@@ -1965,7 +1995,7 @@ namespace MutualFund
             System.IO.File.WriteAllText("ReturnCalulation.txt", "");
             calculateReturn = true;
             HistoricalAnalysis(false, true, true, false);
-            
+            ProcessRealizedGains(displayDetails: false);
             ClearScreen();
             Console.WriteLine("Return analysis for mutual funds\n\n\n");
             Console.WriteLine("{0}\n\n\n", Repeat("=", 150));
@@ -1973,7 +2003,7 @@ namespace MutualFund
             var dates = netValueForReturn.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day).ToList();
             var lastDate = dates.Last();
             System.IO.File.Delete("StdDev.txt");
-            ReturnCalculation r = new ReturnCalculation(origValueForReturn, netValueForReturn[lastDate] + netRealizedGains);
+            MfReturn r = new MfReturn(origValueForReturn, netValueForReturn[lastDate] + netRealizedGains);
             var mfRet = r.GetReturns();
             Console.WriteLine("{0}\n\n\n", Repeat("=", 150));
 
@@ -2035,7 +2065,7 @@ namespace MutualFund
                     continue;
                 var dividents = dividendWithShortNameKeys.ContainsKey(name)
                                     ? dividendWithShortNameKeys[name] : null;
-                r = new ReturnCalculation(valDict, latesValueByName[mf], name, false, navByDate[name], dividents);
+                r = new MfReturn(valDict, latesValueByName[mf], name, false, navByDate[name], dividents);
                 var x = r.GetReturns();
 
                 
@@ -2095,6 +2125,7 @@ namespace MutualFund
             Console.ForegroundColor = colour;
             Console.WriteLine("{0}\n\n\n", Repeat("=", 150));
             LogInvestmentByDateDetails(investmentByDateAndMutualFund);
+            CorrelationCreator.Create(DetailedReturnsByName);
         }
 
         private static void LogInvestmentByDateDetails(Dictionary<string, Dictionary<DateTime, double>> investmentByDateAndMutualFund)
