@@ -126,10 +126,10 @@ namespace MutualFund
         private bool printLog = true;
         private double GetReturn()
         {
-            //double ub = curNetValue > curActValue ?  1000 : 0;
-            //double lb = curNetValue > curActValue ? 0 : -1000;
-            double ub = GetReturnBound(true);
-            double lb = GetReturnBound(false);
+            double ub = curNetValue + dividents.Values.Sum() > curActValue ? 1000 : 0;
+            double lb = curNetValue + dividents.Values.Sum() > curActValue ? 0 : -1000;
+            //double ub = GetReturnBound(true);
+            //double lb = GetReturnBound(false);
             int iteration = 1;
 
             //adjust current net value for today's investment
