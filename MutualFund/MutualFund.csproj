@@ -52,6 +52,7 @@
     <Compile Include="ExcelGraph.cs" />
     <Compile Include="HistoricalNavStore.cs" />
     <Compile Include="MarkovitzModel.cs" />
+    <Compile Include="MfReportParser.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RealizedGain.cs" />

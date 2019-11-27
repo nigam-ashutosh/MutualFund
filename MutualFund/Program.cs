@@ -1110,7 +1110,7 @@ namespace MutualFund
                 subcounter++;
                 if (subcounter < 3)
                 {
-                    newName.Append(elem.Substring(0, 3) + " ");
+                    newName.Append(elem.Substring(0, Math.Min(3, elem.Length)) + " ");
                     continue;
                 }
                 
@@ -1228,6 +1228,8 @@ namespace MutualFund
         {
             //first read all inputs
             ClearScreen();
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
             var directory = System.Environment.CurrentDirectory;
             List<string> files = new List<string>();
 
@@ -1381,6 +1383,7 @@ namespace MutualFund
                     }
                 }
             }
+            Console.WriteLine("Read input files in {0:0.00} secs", watch.Elapsed.TotalSeconds);
             if (calculateReturn)
             {
                 origValueForReturn = new Dictionary<DateTime, double>(totalOrigValue);
@@ -1585,7 +1588,7 @@ namespace MutualFund
                         }
                     }
                     returnByDate.OrderBy(x => x.Key.Year).ThenBy(x => x.Key.Month).ThenBy(x => x.Key.Day);
-                    ExcelGraph g = new ExcelGraph();
+                    //ExcelGraph g = new ExcelGraph();
                     var detailedReturn = GetMFReturnByDate(returnByDate.Keys.ToList(), !detailedGraph);
                     //var detailedReturn2 = ProcessMFreturns(detailedReturn, returnByDate.Keys.ToList());
                     if (printGraph)
@@ -1593,7 +1596,7 @@ namespace MutualFund
                         bool rv = false;
                         try
                         {
-                            rv = g.CreateGraph(returnByDate.Keys.ToList(), returnByDate.Values.ToList(), detailedReturn);
+                            //rv = g.CreateGraph(returnByDate.Keys.ToList(), returnByDate.Values.ToList(), detailedReturn);
                             if (rv)
                             {
                                 Console.WriteLine("Succesfully created graph!");
@@ -1628,6 +1631,8 @@ namespace MutualFund
                 return;
             if (date.Year <= 2015 && date.Month <= 10 && date.Day <= 10)
                 return;
+            if (date.Year == 2019 && date.Month == 11 && date.Day == 25)
+            { }
             if (!mfNavByDate.ContainsKey(date))
             {
                 mfNavByDate.Add(date, new Dictionary<string, double>());
@@ -1745,6 +1750,8 @@ namespace MutualFund
             Dictionary<string, Dictionary<DateTime, double>> unprocessed = new Dictionary<string, Dictionary<DateTime, double>>();
             foreach (var date in input.Keys)
             {
+                if (date.Year == 2019 && date.Month == 11 && date.Day == 25)
+                { }
                 foreach (var name in input[date].Keys)
                 {
                     var name2 = GetChangedName(name);
@@ -1762,6 +1769,8 @@ namespace MutualFund
             
             foreach (var name in unprocessed.Keys)
             {
+                if (name == "Rel Mon Mar. Op.")
+                { }
                 if (!currentMfNames.Contains(name))
                 {
                     notFoundNamesAll.Add(name);
@@ -2044,11 +2053,15 @@ namespace MutualFund
             
             foreach (var mf in existingAmount.Keys)
             {
+                if (mf == "Reliance Money Market Fund-Growth Plan-Growth Option")
+                { }
                 var name = ShortenName(mf);
                 Dictionary<DateTime, double> valDict = new Dictionary<DateTime, double>();
                 int counter = 0;
                 foreach (var date in mfOriginalAmountByDate.Keys)
                 {
+                    if (date.Year == 2019 && date.Month == 11 && date.Day == 25)
+                    { }
                     if (mfOriginalAmountByDate[date].ContainsKey(name))
                     {
                         if (!valDict.ContainsKey(date))
