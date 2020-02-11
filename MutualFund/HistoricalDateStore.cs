@@ -296,11 +296,6 @@ namespace MutualFund
             bool enforceOverride = false;
             if (mfHistoricalData.ContainsKey(curDate))
             {
-                Console.WriteLine("Enforce Historical data update (press 1 to enter)");
-                int response;
-                response = int.Parse(Console.ReadLine());
-                if(response != 1)
-                    return;
                 enforceOverride = true;
             }
             bool updated = false;
