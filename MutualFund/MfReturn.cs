@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace MutualFund
 {
@@ -10,6 +9,7 @@ namespace MutualFund
     {
         Dictionary<DateTime, double> investmnetByDate;
         Dictionary<DateTime, double> investmentDiffByDate;
+        Dictionary<DateTime, double> rawInvestmentDiffByDate;
         double curNetValue = 0;
         double curActValue = 0;
         string name;
@@ -19,6 +19,8 @@ namespace MutualFund
         public double stdDev = double.MinValue;
         private Dictionary<DateTime, double> navByDate;
         Dictionary<DateTime, double> dividents;
+        internal double OrigInvBeyondCriticalInterval;
+        internal double TotalInvestment;
         public MfReturn(Dictionary<DateTime, double> orig, double curValue, string entityName = null, bool displayreturn = true, Dictionary<DateTime, double> navByDate = null, Dictionary<DateTime, double> dividends = null)
         {
             investmnetByDate = new Dictionary<DateTime, double>(orig);
@@ -36,6 +38,7 @@ namespace MutualFund
             }
             var r = this.GetReturn();
             this.GetStandardDeviation();
+            CalculateOrigInvBeyondCriticalInterval();
             this.ret = r;
             if (displayreturn)
             {
@@ -67,6 +70,7 @@ namespace MutualFund
         {
             var dates = investmnetByDate.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day).ToList();
             investmentDiffByDate = new Dictionary<DateTime,double>();
+            rawInvestmentDiffByDate = new Dictionary<DateTime, double>();
             double prevRecord = 0;
             foreach (var date in dates)
             {
@@ -74,6 +78,7 @@ namespace MutualFund
                 if (record != prevRecord)
                 {
                     UpdateInvestmentDiffByDate(date, record - prevRecord, true);
+                    UpdateRawInvestmentDiffByDate(date, record - prevRecord, true);
                     prevRecord = record;
                 }
                 if (this.name != null)
@@ -110,6 +115,17 @@ namespace MutualFund
             investmentDiffByDate[date] += value;
             int daysDiff = (DateTime.Now - date).Days;
             daysDiffSorted.Add(daysDiff);
+        }
+
+        private void UpdateRawInvestmentDiffByDate(DateTime date, double value, bool doNotUpdateIfExisting = false)
+        {
+            if (rawInvestmentDiffByDate.ContainsKey(date) && doNotUpdateIfExisting)
+                return;
+            if (!rawInvestmentDiffByDate.ContainsKey(date))
+            {
+                rawInvestmentDiffByDate[date] = 0;
+            }
+            rawInvestmentDiffByDate[date] += value;
         }
         public Dictionary<DateTime, double> GetInvestmentByDateInformation()
         {
@@ -337,6 +353,27 @@ namespace MutualFund
                     break;
             }
             return date;
+        }
+
+        private void CalculateOrigInvBeyondCriticalInterval()
+        {
+            if (name == null)
+                return;
+            int criticalIntervalInDays = 1 * 365;
+
+            if (name.ToLower().Contains("tax") || name.Contains("Axi"))
+                criticalIntervalInDays = 3 * 365;
+            if (name.ToLower().Contains("liq") || name.ToLower().Contains("mon"))
+                criticalIntervalInDays = 7;
+            OrigInvBeyondCriticalInterval = 0;
+            foreach (var date in rawInvestmentDiffByDate.Keys)
+            {
+                TotalInvestment += rawInvestmentDiffByDate[date]; 
+                if ((DateTime.Now - date).Days < criticalIntervalInDays && rawInvestmentDiffByDate[date] > 0)
+                    continue;
+                OrigInvBeyondCriticalInterval += rawInvestmentDiffByDate[date];
+            }
+            OrigInvBeyondCriticalInterval = Math.Max(0, OrigInvBeyondCriticalInterval);
         }
     }
 }

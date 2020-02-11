@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms.DataVisualization;
-using System.Drawing;
-using System.Windows.Forms;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Cache;
+using System.Text;
+using System.Windows.Forms;
 
 namespace MutualFund
 {
@@ -25,7 +22,8 @@ namespace MutualFund
             = new Dictionary<string, Dictionary<double, double>>();
         static Dictionary<string, List<Tuple<DateTime, double>>> dividends;
         static Dictionary<string, DateTime> schemeUpdate = new Dictionary<string, DateTime>();
-        internal static HistoricalNavStore HistoricalNavStore;
+        static  HistoricalDataStore HistoricalDataStore;
+        //internal static HistoricalNavStore HistoricalNavStore;
         static void Main(string[] args)
         {
             //Sensex.GetSensexData();
@@ -35,6 +33,7 @@ namespace MutualFund
             UpdateNameChangeMapping();
 
             DoAnalysis();
+
             Console.WriteLine("\nPress any key for more options!");
             Console.ReadLine();
             int attempt = 0;
@@ -48,10 +47,10 @@ namespace MutualFund
                 Console.WriteLine("2:\tCompare past two days");
                 Console.WriteLine("3:\tHistorical Analysis");
 
-                //var origColor = Console.ForegroundColor;
-                //Console.ForegroundColor = ConsoleColor.Gray;
+                var origColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Gray;
                 Console.WriteLine("4:\tPrint Return Graph");
-                //Console.ForegroundColor = origColor;
+                Console.ForegroundColor = origColor;
 
                 Console.WriteLine("5:\tCalculate Return and correlation analysis");
                 Console.WriteLine("6:\tRealized Gain Analysis");
@@ -91,6 +90,8 @@ namespace MutualFund
                         continue;
                 }
                 attempt = 0;
+                if(ret > 1 && ret < 7 && HistoricalDataStore == null)
+                    HistoricalDataStore = new HistoricalDataStore();
                 switch (ret)
                 {
                     //Analysis
@@ -105,12 +106,12 @@ namespace MutualFund
                         break;
                     case 4:
                         
-                        ClearScreen();
-                        HistoricalAnalysis(false, true, true);
-                        OpenExcel();
-                        //Console.WriteLine("**Graph analysis not working due to lack of sensex data!\n\n");
-                        //Console.ReadLine();
-                        
+                        ////ClearScreen();
+                        ////HistoricalAnalysis(false, true, true);
+                        ////OpenExcel();
+                        Console.WriteLine("**Graph analysis not working due to lack of sensex data!\n\n");
+                        Console.ReadLine();
+
                         continue;
                     case 5:
                         CalculateReturns();
@@ -330,7 +331,7 @@ namespace MutualFund
         }
         private static void OrderAnalyzedData(bool firstTime)
         {
-            SortReportEnum sort = SortReportEnum.InvestmentAmount;
+            SortReportEnum sort = SortReportEnum.CurrentAmount;
             Dictionary<int, SortReportEnum> enumDic = new Dictionary<int, SortReportEnum>();
             int i = 0;            
             if (!firstTime && !doNotAskForOrder)
@@ -356,6 +357,9 @@ namespace MutualFund
             {
                 case SortReportEnum.InvestmentAmount:
                     latestAnalyzedData = latestAnalyzedData.OrderByDescending(t => t.Item5).ToList();
+                    break;
+                case SortReportEnum.CurrentAmount:
+                    latestAnalyzedData = latestAnalyzedData.OrderByDescending(t => t.Item6).ToList();
                     break;
                 case SortReportEnum.Name:
                     latestAnalyzedData = latestAnalyzedData.OrderBy(t => t.Item1).ToList();
@@ -430,7 +434,7 @@ namespace MutualFund
             sb.Clear();
             Console.ForegroundColor = origColour;
 
-            string folder = DateTime.Now.ToString("MMM") + "_" + DateTime.Now.ToString("yyyy");
+            string folder = string.Format("Reports\\{0}\\{1}_{0}", DateTime.Now.ToString("yyyy"), DateTime.Now.ToString("MMM"));
             if (!System.IO.Directory.Exists(folder))
                 System.IO.Directory.CreateDirectory(folder);
 
@@ -1206,13 +1210,13 @@ namespace MutualFund
             return rv;
         }
 
-        static Dictionary<DateTime, Dictionary<string, double>> mfNavByDate = new Dictionary<DateTime, Dictionary<string, double>>();
-        static Dictionary<DateTime, Dictionary<string, double>> mfNavByDateNameKey = new Dictionary<DateTime, Dictionary<string, double>>();
-        public static Dictionary<DateTime, Dictionary<string, double>> mfOriginalAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>();
-        public static Dictionary<DateTime, Dictionary<string, double>> mfNetAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>();
+        public static Dictionary<DateTime, Dictionary<string, double>> MfNavByDate = new Dictionary<DateTime, Dictionary<string, double>>();
+        public static Dictionary<DateTime, Dictionary<string, double>> MfOriginalAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>();
+        public static Dictionary<DateTime, Dictionary<string, double>> MfNetAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>();
 
-        static Dictionary<DateTime, double> origValueForReturn;
-        static Dictionary<DateTime, double> netValueForReturn;
+        public static Dictionary<DateTime, double> OrigValueForReturn = new Dictionary<DateTime, double>();
+        public static Dictionary<DateTime, double> NetValueForReturn = new Dictionary<DateTime, double>();
+
         static bool calculateReturn = false;
         static DateTime historicalAnalysiStartDate = new DateTime(1900, 1, 1);
 
@@ -1228,29 +1232,7 @@ namespace MutualFund
         {
             //first read all inputs
             ClearScreen();
-            Stopwatch watch = new Stopwatch();
-            watch.Start();
-            var directory = System.Environment.CurrentDirectory;
-            List<string> files = new List<string>();
-
-            files.AddRange(System.IO.Directory.GetFiles(directory).Where(f => f.Contains("Report_")));
-            foreach (var subDir in System.IO.Directory.GetDirectories(directory))
-            {
-                files.AddRange(System.IO.Directory.GetFiles(subDir).Where(f => f.Contains("Report_")));
-            }
-
-            Dictionary<DateTime, double> totalValue = new Dictionary<DateTime, double>();
-            Dictionary<DateTime, double> totalOrigValue = new Dictionary<DateTime, double>();
-            Dictionary<DateTime, double> impByDate = new Dictionary<DateTime, double>();
-
-            Dictionary<string, Tuple<double, double, double>> preNavByName = new Dictionary<string, Tuple<double, double, double>>();
-            Dictionary<string, Tuple<double, double, double>> curNavByName = new Dictionary<string, Tuple<double, double, double>>();
             
-            if (files.Count() < 2)
-            {
-                Console.WriteLine("Insufficient data for historical analysis!");
-                return;
-            }
             int interval = -1;
             if (detailedAnalysisForMFs)
             {
@@ -1298,115 +1280,22 @@ namespace MutualFund
                 
             }
             ClearScreen();
-            bool foundToday = false;
-            bool foundYesterday = false;
-            int minDayDiff = int.MaxValue;
-            string minDayDiffFile = string.Empty;
-            foreach (var file in files )
-            {
-                if (!file.Contains("Report_"))
-                    continue;
-                var arr = file.Split(new char[] {'_', '.' });
-                bool succes = false;
-                DateTime date = DateTime.Now;
-                foreach (var elem in arr)
-                {
-                    try
-                    {
-                        date = DateTime.ParseExact(elem, "yyyyMMdd",
-                                                        System.Globalization.CultureInfo.InvariantCulture,
-                                                        System.Globalization.DateTimeStyles.None);
-                        succes = true;
-                        break;
-                    }
-                    catch
-                    {
-                        succes = false;
-                    }
-                }
-                if (!succes)
-                {
-                    Console.WriteLine("There are no report files!");
-                    return;
-                }
-                if ((date - historicalAnalysiStartDate).Days < 0)
-                    continue;
-                var lines = System.IO.File.ReadAllLines(file);
-
-                var arr2 = lines[lines.Count()-3].Split(new char[] { ' ' });
-                double value = 0;
-                int counter = 0;
-                double gain = 0;
-                while (!double.TryParse(arr2[counter++], out value));
-                while (!double.TryParse(arr2[counter++], out gain)) ;
-
-                arr2 = lines[lines.Count() - 4].Split(new char[] { ' ' });
-                double value2 = 0;
-                counter = 0;
-                while (!double.TryParse(arr2[counter++], out value2)) ;
-                
-                if(!totalValue.ContainsKey(date))
-                {
-                    totalValue.Add(date, 0);
-                    totalOrigValue.Add(date, 0);
-                    impByDate.Add(date, double.MinValue);
-                }
-                totalValue[date] = Math.Max(totalValue[date], value);
-                totalOrigValue[date] = Math.Max(totalOrigValue[date], value2);
-                impByDate[date] = Math.Max(impByDate[date], gain);                
-                if (detailedAnalysisForMFs || detailedGraph)
-                {
-                    Dictionary<string, Tuple<double, double, double>> dayData 
-                        = GetInformationFromDatedFile(file);
-                    ParseDayDataToDatedNav(dayData, date);
-                    if((DateTime.Now - date).Days == 0)
-                    {
-                        curNavByName = dayData;
-                        foundToday = true;
-                    }
-                    if ((DateTime.Now - date).Days == interval)
-                    {
-                        preNavByName = dayData;
-                        foundYesterday = true;
-                    }
-                    if (foundToday && foundYesterday)
-                    {
-                        //break;
-                    }
-                    if ((DateTime.Now - date).Days != 0
-                        && (DateTime.Now - date).Days != interval
-                        && (DateTime.Now - date).Days > interval
-                        && minDayDiff > (DateTime.Now - date).Days)
-                    {
-                        minDayDiff = (DateTime.Now - date).Days;
-                        minDayDiffFile = file;
-                    }
-                }
-            }
-            Console.WriteLine("Read input files in {0:0.00} secs", watch.Elapsed.TotalSeconds);
-            if (calculateReturn)
-            {
-                origValueForReturn = new Dictionary<DateTime, double>(totalOrigValue);
-                netValueForReturn = new Dictionary<DateTime, double>(totalValue);
-                //return;
-            }
+            
+            
             if (detailedAnalysisForMFs)
             {
-                if (!foundYesterday && minDayDiff < int.MaxValue )
-                {
-                    preNavByName = GetInformationFromDatedFile(minDayDiffFile);
-                    foundYesterday = true;
-                    interval = minDayDiff;
-                }
-                if (!foundToday || !foundYesterday)
+                DateTime preDate, curDate;
+                var preNavByName = HistoricalDataStore.GetValueForDateDiff(interval, out preDate);
+                var curNavByName = HistoricalDataStore.GetValueForDateDiff(0, out curDate);
+                if (preNavByName == null || curNavByName == null)
                 {
                     Console.WriteLine("Today's and previous day's reports are not there to compare!");
                 }
                 else
                 {
                     var names = curNavByName.Keys;//preNavByName.Keys.Union(curNavByName.Keys);
-                    string val1 = string.Format("{0}", DateTime.Now.ToString("dd-MMM-yy"));
-                    string val2 = string.Format("{0}", (DateTime.Now.AddDays(-interval)).ToString("dd-MMM-yy"));
+                    string val1 = string.Format("{0}", curDate.ToString("dd-MMM-yy"));
+                    string val2 = string.Format("{0}", preDate.ToString("dd-MMM-yy"));
                     Console.Write("{0}{1}{2}{3}{4}{5}\n",
                         DoSpacing("Fund", 40),
                         DoSpacing(val2, 15), 
@@ -1525,7 +1414,7 @@ namespace MutualFund
                 }
                 return;
             }
-            var keys = totalValue.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Date);
+            var keys = NetValueForReturn.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Date);
             
 
             int count = keys.Count();
@@ -1547,12 +1436,12 @@ namespace MutualFund
                 {
                     sb.Clear();
                     var date = keys.ElementAt(i);
-                    double imp = impByDate[date] * 100 / (totalValue[date] - impByDate[date]);
+                    double imp = (NetValueForReturn[date] - OrigValueForReturn[date]) * 100 / OrigValueForReturn[date];
                     string sign = imp <= 0 ? "" : "+";
                     sb.AppendFormat("{0}{1}{2}{3}",
                        DoSpacing(date.ToString("yyyy-MM-dd") + "(" + date.DayOfWeek.ToString().Substring(0, 3) + ")", 20),
-                       DoSpacing(totalValue[date], 20, 2),
-                       DoSpacing(impByDate[date], 15, 2),
+                       DoSpacing(NetValueForReturn[date], 20, 2),
+                       DoSpacing(NetValueForReturn[date] - OrigValueForReturn[date], 15, 2),
                        DoSpacing(sign + imp.ToString("N" + 2) + "%", 15));
 
                     ConsoleColor origColor = Console.ForegroundColor;
@@ -1623,47 +1512,8 @@ namespace MutualFund
         {
             return (Math.Pow(1 + r, 365.0/interval) - 1)*100;
         }
-        static void ParseDayDataToDatedNav(Dictionary<string, Tuple<double, double, double>> input, DateTime date)
-        {
-            if (input.Keys.Count < 1)
-                return;
-            if (mfOriginalAmountByDate.ContainsKey(date) && mfNetAmountByDate.ContainsKey(date))
-                return;
-            if (date.Year <= 2015 && date.Month <= 10 && date.Day <= 10)
-                return;
-            if (date.Year == 2019 && date.Month == 11 && date.Day == 25)
-            { }
-            if (!mfNavByDate.ContainsKey(date))
-            {
-                mfNavByDate.Add(date, new Dictionary<string, double>());
-            }
-            if (!mfOriginalAmountByDate.ContainsKey(date))
-            {
-                mfOriginalAmountByDate.Add(date, new Dictionary<string, double>());
-            }
-            if (!mfNetAmountByDate.ContainsKey(date))
-            {
-               mfNetAmountByDate.Add(date, new Dictionary<string, double>());
-            }
-            foreach (var mf in input.Keys)
-            {
-                if (!mfNames.Contains(mf))
-                    mfNames.Add(mf);
-                if (!mfNavByDate[date].ContainsKey(mf))
-                {
-                    mfNavByDate[date].Add(mf, input[mf].Item1);
-                }
-                if (!mfOriginalAmountByDate[date].ContainsKey(mf))
-                {
-                    mfOriginalAmountByDate[date].Add(mf, input[mf].Item3);
-                }
-                if (!mfNetAmountByDate[date].ContainsKey(mf))
-                {
-                    mfNetAmountByDate[date].Add(mf, input[mf].Item2);
-                }
-            }
-        }
-        static HashSet<string> mfNames = new HashSet<string>();
+        
+        public static HashSet<string> mfNames = new HashSet<string>();
         static Dictionary<DateTime, Dictionary<string, double>> detailedReturns = null;
         public static Dictionary<string, Dictionary<DateTime, double>> DetailedReturnsByName = null;
         public static Dictionary<DateTime, Dictionary<string, double>> GetMFReturnByDate(List<DateTime> dates, bool skip)
@@ -1674,8 +1524,8 @@ namespace MutualFund
                 return detailedReturns;
             detailedReturns = new Dictionary<DateTime, Dictionary<string, double>>();
             DetailedReturnsByName = new Dictionary<string, Dictionary<DateTime, double>>();
-            mfNavByDate = ProcessMFreturns(mfNavByDate, dates);
-            var sortedDates = mfNavByDate.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day);
+            MfNavByDate = ProcessMFreturns(MfNavByDate, dates);
+            var sortedDates = MfNavByDate.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day);
             Dictionary<string, double> baseNav = new Dictionary<string, double>();
             foreach (var mf in mfNames)
             {
@@ -1691,9 +1541,9 @@ namespace MutualFund
                         preNavMF.Add(mf, double.MinValue);
                     double ret = double.MinValue;
                     double ret2 = double.MinValue;
-                    if (mfNavByDate[date].ContainsKey(mf))
+                    if (MfNavByDate[date].ContainsKey(mf))
                     {
-                        double curNav = mfNavByDate[date][mf];
+                        double curNav = MfNavByDate[date][mf];
                         if (baseNav[mf] > double.MinValue)
                         {                            
                             ret = (curNav - baseNav[mf]) * 100 / baseNav[mf];
@@ -2009,64 +1859,64 @@ namespace MutualFund
             Console.WriteLine("Return analysis for mutual funds\n\n\n");
             Console.WriteLine("{0}\n\n\n", Repeat("=", 150));
 
-            var dates = netValueForReturn.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day).ToList();
+            var dates = NetValueForReturn.Keys.OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day).ToList();
             var lastDate = dates.Last();
             System.IO.File.Delete("StdDev.txt");
-            MfReturn r = new MfReturn(origValueForReturn, netValueForReturn[lastDate] + netRealizedGains);
+            MfReturn r = new MfReturn(OrigValueForReturn, NetValueForReturn[lastDate] + netRealizedGains);
             var mfRet = r.GetReturns();
             Console.WriteLine("{0}\n\n\n", Repeat("=", 150));
 
             string sharpRatioDetail = string.Format("Sharp R.(rF:{0:0.00}%)", RiskFreeInterestRate * 100);
             Console.WriteLine("{0}{1}{2}{3}{4}{5}\n",
+           // Console.WriteLine("{0}{1}{2}{3}{4}{5}{6}\n",
                 Program.DoSpacing("MF Name", 40),
                 Program.DoSpacing("Return (%)", 20),
                 Program.DoSpacing("Std.Dev", 20),
                 Program.DoSpacing(sharpRatioDetail, 20),
-                Program.DoSpacing("Weighted Days", 20),
-                Program.DoSpacing("Start Date", 20)
+                //Program.DoSpacing("Weighted Days", 20),
+                Program.DoSpacing("Start Date", 20),
+                Program.DoSpacing("Unlocked Investment", 50)
                 );
             if(latesValueByName.Count == 0)
             {
                 Console.WriteLine("Do analysis first for mutual fund returns!");
                 return;
             }
-            mfOriginalAmountByDate = ProcessMFreturns(mfOriginalAmountByDate, dates);
+            MfOriginalAmountByDate = ProcessMFreturns(MfOriginalAmountByDate, dates);
             Dictionary<string, double> retByMf = new Dictionary<string, double>();
             Dictionary<string, double> stddevByMf = new Dictionary<string, double>();
             Dictionary<string, double> stddevAvgRatioByMf = new Dictionary<string, double>();
             Dictionary<string, double> correlationByMf = new Dictionary<string, double>();
             Dictionary<string, double> avgAgeByMf = new Dictionary<string, double>();
+            Dictionary<string, double> invWithoutExitLoadByMf = new Dictionary<string, double>();
+            Dictionary<string, double> totalInvByMf = new Dictionary<string, double>();
             Dictionary<string, DateTime> startDateByMf = new Dictionary<string, DateTime>();
             Dictionary<string, Dictionary<DateTime, double>> navByDate = new Dictionary<string, Dictionary<DateTime, double>>();
             Dictionary<string, Dictionary<DateTime, double>> investmentByDateAndMutualFund = new Dictionary<string, Dictionary<DateTime, double>>();
-            foreach (var date in mfNavByDate.Keys)
+            foreach (var date in MfNavByDate.Keys)
             {
-                foreach (var name in mfNavByDate[date].Keys)
+                foreach (var name in MfNavByDate[date].Keys)
                 {
                     if (!navByDate.ContainsKey(name))
                         navByDate.Add(name, new Dictionary<DateTime, double>());
                     if (!navByDate[name].ContainsKey(date))
-                        navByDate[name].Add(date, mfNavByDate[date][name]);
+                        navByDate[name].Add(date, MfNavByDate[date][name]);
                 }
             }
             investmentByDateAndMutualFund.Add("All", new Dictionary<DateTime, double>(r.GetInvestmentByDateInformation()));
             
             foreach (var mf in existingAmount.Keys)
             {
-                if (mf == "Reliance Money Market Fund-Growth Plan-Growth Option")
-                { }
                 var name = ShortenName(mf);
                 Dictionary<DateTime, double> valDict = new Dictionary<DateTime, double>();
                 int counter = 0;
-                foreach (var date in mfOriginalAmountByDate.Keys)
+                foreach (var date in MfOriginalAmountByDate.Keys)
                 {
-                    if (date.Year == 2019 && date.Month == 11 && date.Day == 25)
-                    { }
-                    if (mfOriginalAmountByDate[date].ContainsKey(name))
+                    if (MfOriginalAmountByDate[date].ContainsKey(name))
                     {
                         if (!valDict.ContainsKey(date))
                         {
-                            valDict.Add(date, mfOriginalAmountByDate[date][name]);
+                            valDict.Add(date, MfOriginalAmountByDate[date][name]);
                             counter++;
                         }
                     }
@@ -2098,6 +1948,8 @@ namespace MutualFund
                 investmentByDateAndMutualFund.Add(name, new Dictionary<DateTime, double>(r.GetInvestmentByDateInformation()));
                 avgAgeByMf.Add(name, r.GetAverageInvestementAgeInDays());
                 startDateByMf.Add(name, r.FirstInvestmentDate);
+                invWithoutExitLoadByMf.Add(name, r.OrigInvBeyondCriticalInterval);
+                totalInvByMf.Add(name, r.TotalInvestment);
             }
             double avgStddev = stddevByMf.Values.Average();
             retByMf = retByMf.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
@@ -2131,8 +1983,12 @@ namespace MutualFund
                     Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write("{0}", Program.DoSpacing((stddevAvgRatioByMf[mf]).ToString("N" + 2), 20));
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.Write("{0}", Program.DoSpacing((avgAgeByMf[mf]).ToString("N" + 2), 20));
+                //Console.Write("{0}", Program.DoSpacing((avgAgeByMf[mf]).ToString("N" + 2), 20));
                 Console.Write("{0}", Program.DoSpacing((startDateByMf[mf]).ToString("yyyy-MMM-dd"), 20));
+                string lockInDetails = string.Format("{2:0}% : [{0}/{1}]", invWithoutExitLoadByMf[mf], totalInvByMf[mf], invWithoutExitLoadByMf[mf] * 100 / totalInvByMf[mf]);
+
+                Console.Write("{0}", Program.DoSpacing(lockInDetails, 50, 2));
+
                 Console.Write("\n");
             }
             Console.ForegroundColor = colour;
@@ -2364,5 +2220,6 @@ namespace MutualFund
         RelativeChange,
         AbsChange,
         Units,
+        CurrentAmount,
     }
 }

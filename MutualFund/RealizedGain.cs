@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace MutualFund
 {
@@ -43,8 +42,8 @@ namespace MutualFund
             if (!updated)
             {
                 Program.HistoricalAnalysis(false, true, true, false);
-                mfNetAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>(Program.mfNetAmountByDate);
-                mfOriginalAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>(Program.mfOriginalAmountByDate);
+                mfNetAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>(Program.MfNetAmountByDate);
+                mfOriginalAmountByDate = new Dictionary<DateTime, Dictionary<string, double>>(Program.MfOriginalAmountByDate);
                 infoByMfByDate = new Dictionary<string, Dictionary<DateTime, Tuple<double, double>>>();
                 maxDateForMutualFund = new Dictionary<string, DateTime>();
                 maxDateFoAllrMutualFunds = new DateTime();
