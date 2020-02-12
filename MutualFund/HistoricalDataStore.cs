@@ -299,13 +299,31 @@ namespace MutualFund
                 enforceOverride = true;
             }
             bool updated = false;
+            HashSet<string> mfInLatestAnalyzedData = new HashSet<string>();
             foreach (var t in Program.latestAnalyzedData)
             {
                 if (UpdateSingleEntry(curDate, t.Item1, t.Item4, t.Item5, t.Item6, enforceOverride))
                     updated = true;
+                mfInLatestAnalyzedData.Add(t.Item1);
             }
+            UpdateForDeletion(mfInLatestAnalyzedData, curDate);
             if (updated)
                 PopulateToSummaryFile();
+        }
+
+        private void UpdateForDeletion(HashSet<string> mfInLatestAnalyzedData, DateTime curDate)
+        {
+            foreach (var mf in distinctMutualFunds)
+            {
+                if (!mfInLatestAnalyzedData.Contains(mf) && mfHistoricalData[curDate].ContainsKey(mf))
+                {
+                    Program.MfNavByDate[curDate].Remove(mf);
+                    Program.MfOriginalAmountByDate[curDate].Remove(mf);
+                    Program.MfNetAmountByDate[curDate].Remove(mf);
+                    distinctMutualFunds.Add(mf);
+                    mfHistoricalData[curDate].Remove(mf);
+                }
+            }
         }
 
         internal Dictionary<string, Tuple<double, double, double>> GetValueForDateDiff(int dateDiff, out DateTime correspondingDate)
