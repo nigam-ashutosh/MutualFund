@@ -259,7 +259,7 @@ namespace MutualFund
                 Program.MfNetAmountByDate.Add(date, new Dictionary<string, double>());
                 mfHistoricalData.Add(date, new Dictionary<string, MfData>());
             }
-            if (Program.MfNavByDate[date].ContainsKey(mf))
+            if (Program.MfNavByDate[date].ContainsKey(mf) && !enforceOverride)
                 return false;
             if(enforceOverride)
             {
