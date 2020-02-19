@@ -1319,10 +1319,14 @@ namespace MutualFund
                         double curNav = 0;
                         double curVal = 0;
                         double curUnits = 0;
+                        double preUnits = 0;
+                        double curOrigVal = 0;
+                        double preOrigVal = 0;
                         if (curNavByName.ContainsKey(name))
                         {
                             curNav = curNavByName[name].Item1;
                             curVal = curNavByName[name].Item2;
+                            curOrigVal = curNavByName[name].Item3;
                             curUnits = curVal / curNav;
                         }
                         bool exists = false;
@@ -1330,6 +1334,7 @@ namespace MutualFund
                         {
                             preNav = preNavByName[name].Item1;
                             preVal = preNavByName[name].Item2;
+                            preOrigVal = preNavByName[name].Item3;
                             exists = true;
                         }
                         else
@@ -1340,9 +1345,18 @@ namespace MutualFund
                             preNav = preNavByName[name2].Item1;
                             preVal = preNavByName[name2].Item2;
                         }
+                        preUnits = preVal / preNav;
+                        double navDiff = curNav - preNav;
+                        if (Math.Abs(navDiff) < 1e-3)
+                            navDiff = 0;
+                        double change = navDiff / preNav;
+                        double absDiff = navDiff == 0 ? 0 : curVal - preVal;
 
-                        double change = (curNav - preNav) / preNav;
-                        double absDiff = curUnits * (curNav - preNav);
+                        if(curOrigVal != preOrigVal)
+                        {
+                            double diffOrigValue = curOrigVal - preOrigVal;
+                            absDiff -= diffOrigValue;
+                        }
 
                         cumulativeDiff += absDiff;
 
